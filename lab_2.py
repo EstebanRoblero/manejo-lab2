@@ -31,3 +31,20 @@ ARCHIVO_DATOS = ruta("contactos.dat")
 CAMPOS = [("id", 8), ("nombre", 30), ("telefono", 15), ("correo", 26), ("ciudad", 20)]
 
 ETIQUETAS = {"id": "ID", "nombre": "Nombre", "telefono": "Teléfono","correo": "Correo", "ciudad": "Ciudad"}
+
+LEN_DATOS =sum(largo for _, largo in CAMPOS)
+
+TAMANIO_DELREGISTRO = LEN_DATOS +1
+assert TAMANIO_DELREGISTRO == 100
+
+def ajustar_campo(texto, longitud):
+    datos= str(texto).strip().encode("utf-8")[:longitud]
+    datos = datos.decode("utf-8", errors = "ignore").encode("utf-8")
+    return datos.ljust(longitud, b" ")
+
+
+def codificar_elregistro(valores):
+    cuerpo= b"".join(ajustar_campo(valores[n], l) for n, l in CAMPOS)
+    registro = cuerpo + b "\n"
+    assert len(registro) == TAMANIO_DELREGISTRO
+    return registro
