@@ -12,7 +12,8 @@ try:
 except ImportError:
     PDF = None
 
-
+# Configuración
+#=======================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -37,6 +38,10 @@ LEN_DATOS =sum(largo for _, largo in CAMPOS)
 TAMANIO_DELREGISTRO = LEN_DATOS +1
 assert TAMANIO_DELREGISTRO == 100
 
+#FUNCIONES DEL FORMATO DE REGISTRO EN BYTES
+#==============================================
+
+
 def ajustar_campo(texto, longitud):
     datos= str(texto).strip().encode("utf-8")[:longitud]
     datos = datos.decode("utf-8", errors = "ignore").encode("utf-8")
@@ -45,6 +50,24 @@ def ajustar_campo(texto, longitud):
 
 def codificar_elregistro(valores):
     cuerpo= b"".join(ajustar_campo(valores[n], l) for n, l in CAMPOS)
-    registro = cuerpo + b "\n"
+    registro = cuerpo + b"\n"
     assert len(registro) == TAMANIO_DELREGISTRO
     return registro
+
+
+def decodificar_elregistro(raw):
+    if len(raw) != TAMANIO_DELREGISTRO or not raw.endswith(b"\n"):
+        raise ValueError("el registro no tiene el tamaño o formato correcto")
+
+    valores, pos = {}, 0
+    for nombre, largo in CAMPOS:
+        valores[nombre]= raw[pos: pos + largo].decode("utf-8").strip()
+        pos += largo
+    return valores
+
+# el fpdf2 con fuentes base que solo admite latin-1
+#============================
+def sanear_latin1(texto):
+    return str(texto).encode("latin-1", "replace").decode("latin-1")
+
+
