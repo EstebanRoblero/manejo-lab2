@@ -70,4 +70,22 @@ def decodificar_elregistro(raw):
 def sanear_latin1(texto):
     return str(texto).encode("latin-1", "replace").decode("latin-1")
 
+#aplicaiones 
+
+class AgendaApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Agenda de contactos de Aceso aletorio ")
+        self.indice = {}
+        self.entries= {}
+        self.crear_menu()
+        self.crear_indice()
+        self.cargar_interfaz()
+
+        #ventana de la interfaz visible
+        self.root.aflter(200, lambda: self.veridicar_integridad(manual=False))
+
+
+#indice
+
 
