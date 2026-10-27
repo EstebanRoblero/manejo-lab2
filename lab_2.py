@@ -1,10 +1,10 @@
 import os 
 import json 
-import haslib
-import detetime
+import hashlib
+import datetime
 import zipfile
 import tkinter as tk
-import tkinter import messagebox
+from tkinter import messagebox
 
 
 try:
@@ -79,48 +79,74 @@ class AgendaApp:
         self.indice = {}
         self.entries= {}
         self.crear_menu()
-        self.crear_indice()
+        self.cargar_indice()
         self.cargar_interfaz()
 
         #ventana de la interfaz visible
-        self.root.aflter(200, lambda: self.veridicar_integridad(manual=False))
+        self.root.after(200, lambda: self.veridicar_integridad(manual=False))
 
 
-#indice
+    #indice
 
-def cargar_indice(self):
-    self.indice ={}
-    if os.path.exists(ARCHIVO_INDICE):
+    def cargar_indice(self):
+        self.indice ={}
+        if os.path.exists(ARCHIVO_INDICE):
+            try:
+                with open(ARCHIVO_INDICE, "r", encoding="utf-8") as f:
+                    datos = json.load(f)
+                if not isinstance(datos, dict):
+                    raise ValueError("El indice de este no es un diccionario ")
+                total= self.total_registros()
+                for k, v in datos.items():
+                    if not isinstance(k, str) or not isinstance(v, int) or not 0<= v < total:
+                        raise ValueError("El indice contiene los datos invalidos")
+                self.indice = datos
+                return
+            except (OSError, ValueError) as e:
+                messagebox.showerror("Error", f"el indice esta dañado no se puede usar el {os.path.basename(ARCHIVO_INDICE)}:\n{e}\n\n")
+
+        if os.path.exists(ARCHIVO_DATOS):
+            self.reconstruir_elindice(silencioso=True)
+
+    def guardar_elindice(self):
+        """Escritura segura de archivo temporal + reemplazo."""
+        tmp = ARCHIVO_INDICE + ".tmp"
         try:
-            with open(ARCHIVO_INDICE, "r", encoding="utf-8") as f:
-                datos = json.load(f)
-            if not isinstance(datos, dict):
-                raise ValueError("El indice de este no es un diccionario ")
-            total= self.total_regisrtros()
-            for k, v in datos.items():
-                if not isinstance(k, str) or not isinstance(v, int) or not 0<= v < total:
-                    raise ValueError("El indice contiene los datos invalidos")
-            self.indice = datos
-            return
-        except (OSError, ValueError) as e:
-            messagebox.showerror("el indice esta dañado no se puede usar el {os.path.basename(ARCHIVO_INDICE)}:\n{e}\n\n")
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self.indice, f, indent=2)
+            os.replace(tmp, ARCHIVO_INDICE)
+            return True
+        except OSError as e:
+            messagebox.showerror("Error", f"No se pudo guardar el índice:\n{e}")
+            return False
 
-    if os.path.exists(ARCHIVO_DATOS):
-        self.reconstruir_indice(silencioso=True)
-
-def guardar_elindice(self):
-    """Escritura segura de archivo temporal + reemplazo."""
-    tmp = ARCHIVO_INDICE + ".tmp"
-    try:
-        whit open(tmp, "w", enconding="utf-8") as f:
-            json.dump(self.indice, f, indent=2)
-        os.replace(tmp, ARCHIVO_INDICE)
-        return True
-    except OSError as e:
-        messagebox.showerror("Error", f"No se pudo guardar el índice:\n{e}")
-        return False
-
-def reconstruir_elindice(self, silencioso=False):
-    if not os.path.exists(ARCHIVO_DATOS):
+    def reconstruir_elindice(self, silencioso=False):
+        if not os.path.exists(ARCHIVO_DATOS):
             if not silencioso:
-                messagebox.showerror("Error", "El archivo de contactos no existe.")
+                messagebox.showerror("Error", "El archivo de contactos no existe")
+            return
+        nuevo = {}
+        try:
+            with open(ARCHIVO_DATOS, "rb") as f:
+                num = 0
+                while True:
+                    raw = f.read(TAMANIO_DELREGISTRO)
+                    if not raw:
+                        break
+                    valores = decodificar_elregistro(raw)
+                    nuevo[str(int(valores["id"]))] = num
+                    num += 1
+        except (OSError, ValueError) as e:
+            messagebox.showerror("Error", f"No se pudo reconstruir el indice:\n{e}")
+            return
+        self.indice = nuevo
+        if self.guardar_elindice() and not silencioso:
+            messagebox.showinfo("indice", f"el indice reconstruido con {len(nuevo)} contactos.")
+        elif silencioso:
+            messagebox.showinfo("indice", f"el indice reconstruido con {len(nuevo)} contactos.")
+            
+    def total_registros(self):
+        try:
+            return os.path.getsize(ARCHIVO_DATOS) // TAMANIO_DELREGISTRO
+        except OSError:
+            return 0
