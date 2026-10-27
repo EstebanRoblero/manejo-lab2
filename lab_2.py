@@ -102,4 +102,25 @@ def cargar_indice(self):
                     raise ValueError("El indice contiene los datos invalidos")
             self.indice = datos
             return
-        excep 
+        except (OSError, ValueError) as e:
+            messagebox.showerror("el indice esta dañado no se puede usar el {os.path.basename(ARCHIVO_INDICE)}:\n{e}\n\n")
+
+    if os.path.exists(ARCHIVO_DATOS):
+        self.reconstruir_indice(silencioso=True)
+
+def guardar_elindice(self):
+    """Escritura segura de archivo temporal + reemplazo."""
+    tmp = ARCHIVO_INDICE + ".tmp"
+    try:
+        whit open(tmp, "w", enconding="utf-8") as f:
+            json.dump(self.indice, f, indent=2)
+        os.replace(tmp, ARCHIVO_INDICE)
+        return True
+    except OSError as e:
+        messagebox.showerror("Error", f"No se pudo guardar el índice:\n{e}")
+        return False
+
+def reconstruir_elindice(self, silencioso=False):
+    if not os.path.exists(ARCHIVO_DATOS):
+            if not silencioso:
+                messagebox.showerror("Error", "El archivo de contactos no existe.")
