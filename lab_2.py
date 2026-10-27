@@ -1,5 +1,5 @@
-import os 
-import json 
+import os
+import json
 import hashlib
 import datetime
 import zipfile
@@ -19,7 +19,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def ruta(nombre):
     return os.path.join(BASE_DIR, nombre)
-
 
 ARCHIVO_JSON = ruta("archivo.json")
 ARCHIVO_ZIP = ruta("respaldo.zip")
@@ -70,7 +69,7 @@ def decodificar_elregistro(raw):
 def sanear_latin1(texto):
     return str(texto).encode("latin-1", "replace").decode("latin-1")
 
-#aplicaiones 
+#aplicaiones
 
 class AgendaApp:
     def __init__(self, root):
@@ -144,7 +143,7 @@ class AgendaApp:
             messagebox.showinfo("indice", f"el indice reconstruido con {len(nuevo)} contactos.")
         elif silencioso:
             messagebox.showinfo("indice", f"el indice reconstruido con {len(nuevo)} contactos.")
-            
+
     def total_registros(self):
         try:
             return os.path.getsize(ARCHIVO_DATOS) // TAMANIO_DELREGISTRO
@@ -160,7 +159,7 @@ class AgendaApp:
             for bloque in iter(lambda: f.read(65536), b""):
                 hasher.update(bloque)
         return hasher.hexdigest()
- 
+
     def actualizar_hash(self):
         if not os.path.exists(ARCHIVO_DATOS):
             return
@@ -169,7 +168,7 @@ class AgendaApp:
                 f.write(self.calcular_hash())
         except OSError as e:
             messagebox.showerror("Error", f"No se pudo guardar el hash:\n{e}")
- 
+
     def verificar_integridad(self, manual=True):
         """Compara el hash actual contra el guardado (al iniciar o desde Herramientas)."""
         if not os.path.exists(ARCHIVO_DATOS):
@@ -188,7 +187,7 @@ class AgendaApp:
         except OSError as e:
             messagebox.showerror("Error", f"No se pudo verificar la integridad:\n{e}")
             return
- 
+
         if actual != guardado:
             messagebox.showwarning(
                 "Alerta de Integridad",
@@ -200,5 +199,61 @@ class AgendaApp:
         elif manual:
             messagebox.showinfo("Integridad", "El archivo está íntegro (el hash coincide).")
 
-#===finish=====
+#interfaz grafica
+    def cargar_interfaz(self):
+        form = tk.Frame(self.root)
+        form.pack(padx=10, pady=5)
+
+        for i, (nombre, largo) in enumerate(CAMPOS):
+            tk.Label(form, text=f"{ETIQUETAS[nombre]}:").grid(row=i, column=0, sticky="e", padx=5, pady=2)
+            entry = tk.Entry(form, width=30)
+            entry.grid(row=i, column=1, padx=5, pady=2)
+            self.entries[nombre] = entry
+
+        btn_frame = tk.Frame(self.root)
+        btn_frame.pack(pady=5)
+        tk.Button(btn_frame, text="Agregar", command=self.agregar_contacto).pack(side="left", padx=3)
+        tk.Button(btn_frame, text="Buscar ID", command=self.buscar_contacto).pack(side="left", padx=3)
+        tk.Button(btn_frame, text="Modificar", command=self.modificar_contacto).pack(side="left", padx=3)
+        tk.Button(btn_frame, text="Limpiar", command=self.limpiar_formulario).pack(side="left", padx=3)
+
+    def crear_menu(self):
+        barra = tk.Menu(self.root)
+
+        m_contactos = tk.Menu(barra, tearoff=0)
+        m_contactos.add_command(label="Agregar contacto", command=self.agregar_contacto)
+        m_contactos.add_command(label="Buscar por ID", command=self.buscar_contacto)
+        m_contactos.add_command(label="Modificar contacto", command=self.modificar_contacto)
+        barra.add_cascade(label="Contactos", menu=m_contactos)
+
+        m_exportar = tk.Menu(barra, tearoff=0)
+        m_exportar.add_command(label="Exportar a JSON", command=self.exportar_json)
+        m_exportar.add_command(label="Generar reporte PDF", command=self.generar_pdf)
+        barra.add_cascade(label="Exportar", menu=m_exportar)
+
+        m_herr = tk.Menu(barra, tearoff=0)
+        m_herr.add_command(label="Verificar integridad", command=self.verificar_integridad)
+        m_herr.add_command(label="Crear respaldo ZIP", command=self.crear_respaldo)
+        m_herr.add_command(label="Información del archivo", command=self.mostrar_info_archivo)
+        barra.add_cascade(label="Herramientas", menu=m_herr)
+
+        m_ayuda = tk.Menu(barra, tearoff=0)
+        m_ayuda.add_command(label="Ayuda", command=lambda: messagebox.showinfo("Ayuda", "Sistemas de contactos."))
+        m_ayuda.add_command(label="Acerca de", command=lambda: messagebox.showinfo("Acerca de", "Laboratorio No. 2"))
+        barra.add_cascade(label="Ayuda", menu=m_ayuda)
+
+        self.root.config(menu=barra)
+
+    def leer_formulario(self):
+        return {n: self.entries[n].get().strip() for n, _ in CAMPOS}
+
+    def llenar_formulario(self, valores):
+        for n, _ in CAMPOS:
+            self.entries[n].delete(0, "end")
+            self.entries[n].insert(0, valores.get(n, ""))
+
+    def limpiar_formulario(self):
+        self.llenar_formulario({})
+
+
 
