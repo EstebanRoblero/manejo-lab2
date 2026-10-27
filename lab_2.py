@@ -88,4 +88,18 @@ class AgendaApp:
 
 #indice
 
-
+def cargar_indice(self):
+    self.indice ={}
+    if os.path.exists(ARCHIVO_INDICE):
+        try:
+            with open(ARCHIVO_INDICE, "r", encoding="utf-8") as f:
+                datos = json.load(f)
+            if not isinstance(datos, dict):
+                raise ValueError("El indice de este no es un diccionario ")
+            total= self.total_regisrtros()
+            for k, v in datos.items():
+                if not isinstance(k, str) or not isinstance(v, int) or not 0<= v < total:
+                    raise ValueError("El indice contiene los datos invalidos")
+            self.indice = datos
+            return
+        excep 
