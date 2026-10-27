@@ -21,7 +21,7 @@ def ruta(nombre):
     return os.path.join(BASE_DIR, nombre)
 
 
-ARCHIVO_JSON = ruta ("archivo.json")
+ARCHIVO_JSON = ruta("archivo.json")
 ARCHIVO_ZIP = ruta("respaldo.zip")
 ARCHIVO_PDF = ruta("reportede_contactos.pdf")
 ARCHIVO_HASH = ruta("contactos.sha256")
@@ -33,9 +33,9 @@ CAMPOS = [("id", 8), ("nombre", 30), ("telefono", 15), ("correo", 26), ("ciudad"
 
 ETIQUETAS = {"id": "ID", "nombre": "Nombre", "telefono": "Teléfono","correo": "Correo", "ciudad": "Ciudad"}
 
-LEN_DATOS =sum(largo for _, largo in CAMPOS)
+LEN_DATOS = sum(largo for _, largo in CAMPOS)
 
-TAMANIO_DELREGISTRO = LEN_DATOS +1
+TAMANIO_DELREGISTRO = LEN_DATOS + 1
 assert TAMANIO_DELREGISTRO == 100
 
 #FUNCIONES DEL FORMATO DE REGISTRO EN BYTES
@@ -43,13 +43,13 @@ assert TAMANIO_DELREGISTRO == 100
 
 
 def ajustar_campo(texto, longitud):
-    datos= str(texto).strip().encode("utf-8")[:longitud]
-    datos = datos.decode("utf-8", errors = "ignore").encode("utf-8")
+    datos = str(texto).strip().encode("utf-8")[:longitud]
+    datos = datos.decode("utf-8", errors="ignore").encode("utf-8")
     return datos.ljust(longitud, b" ")
 
 
 def codificar_elregistro(valores):
-    cuerpo= b"".join(ajustar_campo(valores[n], l) for n, l in CAMPOS)
+    cuerpo = b"".join(ajustar_campo(valores[n], l) for n, l in CAMPOS)
     registro = cuerpo + b"\n"
     assert len(registro) == TAMANIO_DELREGISTRO
     return registro
@@ -61,7 +61,7 @@ def decodificar_elregistro(raw):
 
     valores, pos = {}, 0
     for nombre, largo in CAMPOS:
-        valores[nombre]= raw[pos: pos + largo].decode("utf-8").strip()
+        valores[nombre] = raw[pos: pos + largo].decode("utf-8").strip()
         pos += largo
     return valores
 
@@ -77,28 +77,28 @@ class AgendaApp:
         self.root = root
         self.root.title("Agenda de contactos de Aceso aletorio ")
         self.indice = {}
-        self.entries= {}
+        self.entries = {}
         self.crear_menu()
         self.cargar_indice()
         self.cargar_interfaz()
 
         #ventana de la interfaz visible
-        self.root.after(200, lambda: self.veridicar_integridad(manual=False))
+        self.root.after(200, lambda: self.verificar_integridad(manual=False))
 
 
     #indice
 
     def cargar_indice(self):
-        self.indice ={}
+        self.indice = {}
         if os.path.exists(ARCHIVO_INDICE):
             try:
                 with open(ARCHIVO_INDICE, "r", encoding="utf-8") as f:
                     datos = json.load(f)
                 if not isinstance(datos, dict):
                     raise ValueError("El indice de este no es un diccionario ")
-                total= self.total_registros()
+                total = self.total_registros()
                 for k, v in datos.items():
-                    if not isinstance(k, str) or not isinstance(v, int) or not 0<= v < total:
+                    if not isinstance(k, str) or not isinstance(v, int) or not 0 <= v < total:
                         raise ValueError("El indice contiene los datos invalidos")
                 self.indice = datos
                 return
@@ -150,3 +150,55 @@ class AgendaApp:
             return os.path.getsize(ARCHIVO_DATOS) // TAMANIO_DELREGISTRO
         except OSError:
             return 0
+
+    #hash
+
+    @staticmethod
+    def calcular_hash():
+        hasher = hashlib.sha256()
+        with open(ARCHIVO_DATOS, "rb") as f:
+            for bloque in iter(lambda: f.read(65536), b""):
+                hasher.update(bloque)
+        return hasher.hexdigest()
+ 
+    def actualizar_hash(self):
+        if not os.path.exists(ARCHIVO_DATOS):
+            return
+        try:
+            with open(ARCHIVO_HASH, "w", encoding="utf-8") as f:
+                f.write(self.calcular_hash())
+        except OSError as e:
+            messagebox.showerror("Error", f"No se pudo guardar el hash:\n{e}")
+ 
+    def verificar_integridad(self, manual=True):
+        """Compara el hash actual contra el guardado (al iniciar o desde Herramientas)."""
+        if not os.path.exists(ARCHIVO_DATOS):
+            if manual:
+                messagebox.showinfo("Integridad", "Todavía no existe el archivo de contactos.")
+            return
+        try:
+            actual = self.calcular_hash()
+            if not os.path.exists(ARCHIVO_HASH):
+                self.actualizar_hash()
+                if manual:
+                    messagebox.showinfo("Integridad", "No había hash guardado; se generó uno nuevo.")
+                return
+            with open(ARCHIVO_HASH, "r", encoding="utf-8") as f:
+                guardado = f.read().strip()
+        except OSError as e:
+            messagebox.showerror("Error", f"No se pudo verificar la integridad:\n{e}")
+            return
+ 
+        if actual != guardado:
+            messagebox.showwarning(
+                "Alerta de Integridad",
+                "El archivo de contactos fue modificado fuera de la aplicación.\n\n"
+                f"Hash guardado:\n{guardado}\n\nHash actual:\n{actual}")
+            if messagebox.askyesno("Integridad", "¿Aceptar el estado actual y recalcular el hash?"):
+                self.actualizar_hash()
+                self.reconstruir_elindice(silencioso=True)
+        elif manual:
+            messagebox.showinfo("Integridad", "El archivo está íntegro (el hash coincide).")
+
+#===finish=====
+
