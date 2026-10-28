@@ -6,9 +6,8 @@ import zipfile
 import tkinter as tk
 from tkinter import messagebox
 
-
 try:
-    from fpdf import PDF
+    from fpdf import FPDF as PDF
 except ImportError:
     PDF = None
 
@@ -30,14 +29,14 @@ ARCHIVO_DATOS = ruta("contactos.dat")
 
 CAMPOS = [("id", 8), ("nombre", 30), ("telefono", 15), ("correo", 26), ("ciudad", 20)]
 
-ETIQUETAS = {"id": "ID", "nombre": "Nombre", "telefono": "Teléfono","correo": "Correo", "ciudad": "Ciudad"}
+ETIQUETAS = {"id": "ID", "nombre": "Nombre", "telefono": "Teléfono", "correo": "Correo", "ciudad": "Ciudad"}
 
 LEN_DATOS = sum(largo for _, largo in CAMPOS)
 
 TAMANIO_DELREGISTRO = LEN_DATOS + 1
 assert TAMANIO_DELREGISTRO == 100
 
-#FUNCIONES DEL FORMATO DE REGISTRO EN BYTES
+# FUNCIONES DEL FORMATO DE REGISTRO EN BYTES
 #==============================================
 
 
@@ -69,23 +68,22 @@ def decodificar_elregistro(raw):
 def sanear_latin1(texto):
     return str(texto).encode("latin-1", "replace").decode("latin-1")
 
-#aplicaiones
+# aplicaciones
 
 class AgendaApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Agenda de contactos de Aceso aletorio ")
+        self.root.title("Agenda de contactos de Acceso Aleatorio")
         self.indice = {}
         self.entries = {}
+        self.cargar_interfaz()
         self.crear_menu()
         self.cargar_indice()
-        self.cargar_interfaz()
 
-        #ventana de la interfaz visible
+        # ventana de la interfaz visible
         self.root.after(200, lambda: self.verificar_integridad(manual=False))
 
-
-    #indice
+    # índice
 
     def cargar_indice(self):
         self.indice = {}
@@ -150,7 +148,7 @@ class AgendaApp:
         except OSError:
             return 0
 
-    #hash
+    # hash
 
     @staticmethod
     def calcular_hash():
@@ -199,7 +197,7 @@ class AgendaApp:
         elif manual:
             messagebox.showinfo("Integridad", "El archivo está íntegro (el hash coincide).")
 
-#interfaz grafica
+    # interfaz gráfica
     def cargar_interfaz(self):
         form = tk.Frame(self.root)
         form.pack(padx=10, pady=5)
@@ -255,7 +253,7 @@ class AgendaApp:
     def limpiar_formulario(self):
         self.llenar_formulario({})
 
-#CRUD con acceso aleatorio
+    # CRUD con acceso aleatorio
     def agregar_contacto(self):
         valores = self.leer_formulario()
         id_txt = valores["id"]
@@ -281,116 +279,3 @@ class AgendaApp:
             messagebox.showinfo("Éxito", f"Contacto guardado en registro #{num} (pos: {pos})")
         except Exception as e:
             messagebox.showerror("Error", str(e))
-
-    def buscar_contacto(self):
-        id_txt = self.entries["id"].get().strip()
-        if id_txt not in self.indice:
-            messagebox.showinfo("Búsqueda", f"No se encontró el ID {id_txt}")
-            return
-
-        num = self.indice[id_txt]
-        try:
-            with open(ARCHIVO_DATOS, "rb") as f:
-                f.seek(num * TAMANIO_DELREGISTRO)
-                raw = f.read(TAMANIO_DELREGISTRO)
-                valores = decodificar_elregistro(raw)
-
-            self.llenar_formulario(valores)
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-
-    def modificar_contacto(self):
-        valores = self.leer_formulario()
-        id_txt = valores["id"]
-        if id_txt not in self.indice:
-            messagebox.showwarning("Error", f"No existe contacto con ID {id_txt}")
-            return
-
-        num = self.indice[id_txt]
-        try:
-            with open(ARCHIVO_DATOS, "r+b") as f:
-                f.seek(num * TAMANIO_DELREGISTRO)
-                f.write(codificar_elregistro(valores))
-
-            self.actualizar_hash()
-            messagebox.showinfo("Éxito", "Contacto modificado correctamente.")
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-
-#exportacion
-    def exportar_json(self):
-        if not os.path.exists(ARCHIVO_DATOS):
-            return False
-        contactos = []
-        with open(ARCHIVO_DATOS, "rb") as f:
-            while raw := f.read(TAMANIO_DELREGISTRO):
-                contactos.append(decodificar_elregistro(raw))
-
-        datos = {
-            "fecha_generacion": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "total": len(contactos),
-            "contactos": contactos
-        }
-        with open(ARCHIVO_JSON, "w", encoding="utf-8") as f:
-            json.dump(datos, f, indent=2, ensure_ascii=False)
-        messagebox.showinfo("Exportar", f"Exportado a:\n{ARCHIVO_JSON}")
-        return True
-
-    def generar_pdf(self):
-        if PDF is None:
-            messagebox.showerror("Error", "No se encontró la librería PDF.")
-            return
-        if not self.exportar_json():
-            return
-
-        with open(ARCHIVO_JSON, "r", encoding="utf-8") as f:
-            datos = json.load(f)
-
-        pdf = PDF()
-        pdf.add_page()
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.cell(0, 10, "Reporte de Contactos", 0, 1, "C")
-
-        for c in datos["contactos"]:
-            linea = f"ID: {c['id']} | {c['nombre']} | Tel: {c['telefono']} | {c['correo']} | {c['ciudad']}"
-            pdf.cell(0, 6, sanear_latin1(linea), 1, 1)
-
-        pdf.output(ARCHIVO_PDF)
-        messagebox.showinfo("PDF", f"PDF generado en:\n{ARCHIVO_PDF}")
-
-    def crear_respaldo(self):
-        if not os.path.exists(ARCHIVO_DATOS):
-            return
-        orig = os.path.getsize(ARCHIVO_DATOS)
-        with zipfile.ZipFile(ARCHIVO_ZIP, "w", zipfile.ZIP_DEFLATED) as z:
-            z.write(ARCHIVO_DATOS, os.path.basename(ARCHIVO_DATOS))
-            if os.path.exists(ARCHIVO_INDICE):
-                z.write(ARCHIVO_INDICE, os.path.basename(ARCHIVO_INDICE))
-        comp = os.path.getsize(ARCHIVO_ZIP)
-        messagebox.showinfo("Respaldo", f"Original: {orig} bytes\nComprimido: {comp} bytes")
-
-    def mostrar_info_archivo(self):
-        if not os.path.exists(ARCHIVO_DATOS):
-            messagebox.showinfo("Info", "No existe el archivo de datos todavía.")
-            return
-        st = os.stat(ARCHIVO_DATOS)
-        info = (
-            f"Archivo: {os.path.basename(ARCHIVO_DATOS)}\n"
-            f"Tamaño: {st.st_size} bytes ({st.st_size // TAMANIO_DELREGISTRO} registros)\n"
-            f"Última Modificación: {datetime.datetime.fromtimestamp(st.st_mtime)}\n"
-            f"Lectura: {os.access(ARCHIVO_DATOS, os.R_OK)}\n"
-            f"Escritura: {os.access(ARCHIVO_DATOS, os.W_OK)}"
-        )
-        messagebox.showinfo("Información del Archivo", info)
-
-
-#eject
-def main():
-    root = tk.Tk()
-    root.geometry("400x350")
-    AgendaApp(root)
-    root.mainloop()
-
-
-if __name__ == "__main__":
-    main()
