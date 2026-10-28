@@ -384,6 +384,7 @@ class AgendaApp:
         messagebox.showinfo("Información del Archivo", info)
 
 
+#eject
 def main():
     root = tk.Tk()
     root.geometry("400x350")
