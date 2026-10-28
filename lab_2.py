@@ -8,7 +8,7 @@ from tkinter import messagebox
 
 
 try:
-    from tkinter import PDF
+    from fpdf import PDF
 except ImportError:
     PDF = None
 
