@@ -255,5 +255,65 @@ class AgendaApp:
     def limpiar_formulario(self):
         self.llenar_formulario({})
 
+#CRUD con acceso aleatorio
+    def agregar_contacto(self):
+        valores = self.leer_formulario()
+        id_txt = valores["id"]
+        if not id_txt or not id_txt.isdigit():
+            messagebox.showwarning("Error", "Ingrese un ID numérico válido.")
+            return
+        if id_txt in self.indice:
+            messagebox.showwarning("Error", f"El ID {id_txt} ya existe.")
+            return
 
+        try:
+            modo = "r+b" if os.path.exists(ARCHIVO_DATOS) else "w+b"
+            with open(ARCHIVO_DATOS, modo) as f:
+                f.seek(0, os.SEEK_END)
+                pos = f.tell()
+                num = pos // TAMANIO_DELREGISTRO
+                f.write(codificar_elregistro(valores))
+
+            self.indice[id_txt] = num
+            self.guardar_elindice()
+            self.actualizar_hash()
+            self.limpiar_formulario()
+            messagebox.showinfo("Éxito", f"Contacto guardado en registro #{num} (pos: {pos})")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def buscar_contacto(self):
+        id_txt = self.entries["id"].get().strip()
+        if id_txt not in self.indice:
+            messagebox.showinfo("Búsqueda", f"No se encontró el ID {id_txt}")
+            return
+
+        num = self.indice[id_txt]
+        try:
+            with open(ARCHIVO_DATOS, "rb") as f:
+                f.seek(num * TAMANIO_DELREGISTRO)
+                raw = f.read(TAMANIO_DELREGISTRO)
+                valores = decodificar_elregistro(raw)
+
+            self.llenar_formulario(valores)
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def modificar_contacto(self):
+        valores = self.leer_formulario()
+        id_txt = valores["id"]
+        if id_txt not in self.indice:
+            messagebox.showwarning("Error", f"No existe contacto con ID {id_txt}")
+            return
+
+        num = self.indice[id_txt]
+        try:
+            with open(ARCHIVO_DATOS, "r+b") as f:
+                f.seek(num * TAMANIO_DELREGISTRO)
+                f.write(codificar_elregistro(valores))
+
+            self.actualizar_hash()
+            messagebox.showinfo("Éxito", "Contacto modificado correctamente.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
