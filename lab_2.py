@@ -317,3 +317,79 @@ class AgendaApp:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+#exportacion
+    def exportar_json(self):
+        if not os.path.exists(ARCHIVO_DATOS):
+            return False
+        contactos = []
+        with open(ARCHIVO_DATOS, "rb") as f:
+            while raw := f.read(TAMANIO_DELREGISTRO):
+                contactos.append(decodificar_elregistro(raw))
+
+        datos = {
+            "fecha_generacion": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total": len(contactos),
+            "contactos": contactos
+        }
+        with open(ARCHIVO_JSON, "w", encoding="utf-8") as f:
+            json.dump(datos, f, indent=2, ensure_ascii=False)
+        messagebox.showinfo("Exportar", f"Exportado a:\n{ARCHIVO_JSON}")
+        return True
+
+    def generar_pdf(self):
+        if PDF is None:
+            messagebox.showerror("Error", "No se encontró la librería PDF.")
+            return
+        if not self.exportar_json():
+            return
+
+        with open(ARCHIVO_JSON, "r", encoding="utf-8") as f:
+            datos = json.load(f)
+
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.cell(0, 10, "Reporte de Contactos", 0, 1, "C")
+
+        for c in datos["contactos"]:
+            linea = f"ID: {c['id']} | {c['nombre']} | Tel: {c['telefono']} | {c['correo']} | {c['ciudad']}"
+            pdf.cell(0, 6, sanear_latin1(linea), 1, 1)
+
+        pdf.output(ARCHIVO_PDF)
+        messagebox.showinfo("PDF", f"PDF generado en:\n{ARCHIVO_PDF}")
+
+    def crear_respaldo(self):
+        if not os.path.exists(ARCHIVO_DATOS):
+            return
+        orig = os.path.getsize(ARCHIVO_DATOS)
+        with zipfile.ZipFile(ARCHIVO_ZIP, "w", zipfile.ZIP_DEFLATED) as z:
+            z.write(ARCHIVO_DATOS, os.path.basename(ARCHIVO_DATOS))
+            if os.path.exists(ARCHIVO_INDICE):
+                z.write(ARCHIVO_INDICE, os.path.basename(ARCHIVO_INDICE))
+        comp = os.path.getsize(ARCHIVO_ZIP)
+        messagebox.showinfo("Respaldo", f"Original: {orig} bytes\nComprimido: {comp} bytes")
+
+    def mostrar_info_archivo(self):
+        if not os.path.exists(ARCHIVO_DATOS):
+            messagebox.showinfo("Info", "No existe el archivo de datos todavía.")
+            return
+        st = os.stat(ARCHIVO_DATOS)
+        info = (
+            f"Archivo: {os.path.basename(ARCHIVO_DATOS)}\n"
+            f"Tamaño: {st.st_size} bytes ({st.st_size // TAMANIO_DELREGISTRO} registros)\n"
+            f"Última Modificación: {datetime.datetime.fromtimestamp(st.st_mtime)}\n"
+            f"Lectura: {os.access(ARCHIVO_DATOS, os.R_OK)}\n"
+            f"Escritura: {os.access(ARCHIVO_DATOS, os.W_OK)}"
+        )
+        messagebox.showinfo("Información del Archivo", info)
+
+
+def main():
+    root = tk.Tk()
+    root.geometry("400x350")
+    AgendaApp(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
